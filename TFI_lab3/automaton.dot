@@ -1,0 +1,21 @@
+digraph Automaton {
+  state0 [label="State 0\nA → .aA\nA → .cb\nQ → .S\nS → .aSb\nS → .c\nS → .A\n"];
+  state1 [label="State 1\n  Q→S: finish\n ____ \nQ → S.\n"];
+  state2 [label="State 2\n  S→A: reduce\n ____ \nS → A.\n"];
+  state3 [label="State 3\nA → a.A\nA → .aA\nA → .cb\nS → a.Sb\nS → .aSb\nS → .c\nS → .A\n"];
+  state4 [label="State 4\n  S→c: reduce\n ____ \nA → c.b\nS → c.\n"];
+  state5 [label="State 5\nS → aS.b\n"];
+  state6 [label="State 6\n  A→aA: reduce\n  S→A: reduce\n ____ \nA → aA.\nS → A.\n"];
+  state7 [label="State 7\n  A→cb: reduce\n ____ \nA → cb.\n"];
+  state8 [label="State 8\n  S→aSb: reduce\n ____ \nS → aSb.\n"];
+  state0 -> state2 [label="A"];
+  state0 -> state1 [label="S"];
+  state0 -> state3 [label="a"];
+  state0 -> state4 [label="c"];
+  state3 -> state6 [label="A"];
+  state3 -> state5 [label="S"];
+  state3 -> state3 [label="a"];
+  state3 -> state4 [label="c"];
+  state4 -> state7 [label="b"];
+  state5 -> state8 [label="b"];
+}
