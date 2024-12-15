@@ -27,7 +27,7 @@ struct PDA {
     vector<int> reduce_states; // номера сострояния свертки
     
 
-    bool run(const string& input_string) {
+    bool checkString(const string& input_string) {
         // Очередь для отслеживания состояния (state, remaining_input, stack)
         deque<tuple<int, string, vector<string>>> queue;
         queue.push_back({start_state, input_string, {"A0"}}); // Начальное состояние
@@ -64,7 +64,6 @@ struct PDA {
                         stack_action = transition_string.substr(slash_pos + 1);
                     }
 
-
                     // Проверяем входной символ и вершину стека
                     if ((symbol == input_symbol || symbol == "ε") &&
                         (stack.empty() || stack.back() == stack_top || stack_top == "x")) {
@@ -92,30 +91,6 @@ struct PDA {
                             new_stack.push_back(stack_action.substr(0, 2));
                         }
 
-                        // cout << " | new_stack: " << endl;
-                        // for (auto x : new_stack) {
-                        //     cout << x << " |  ";
-                        // } cout << endl;
-
-                        // если у нас снимаемое значение со стека != x и при этом стек не пустой,
-                        // мы снимаем
-                        // if (!new_stack.empty() && stack_top != "x") {
-                        //     new_stack.pop_back();
-                        // }
-
-                        // // Добавляем новые символы в стек
-                        // if (stack_action != "ε") {
-                        //     string str_to_add = "";
-                        //     for (auto it = stack_action.rbegin(); it != stack_action.rend(); ++it) {
-                        //         if (*it != 'x') {
-                        //             new_stack.push_back(string(1, *it));
-                        //         }
-                        //     }
-                        // } else {
-                        //     new_stack.pop_back();
-                        // }
-
-                        // // Добавляем новое состояние в очередь
                         queue.push_back({next_state, new_remaining_input, new_stack});
                     }
                 }
@@ -128,7 +103,7 @@ struct PDA {
 
     void validateStrings(const vector<pair<string, bool>>& inputs) {
         for (const auto& [str, expected_result] : inputs) {
-            bool result = run(str);
+            bool result = checkString(str);
             if (result == expected_result) {
                 cout << "[OK] String: \"" << str << "\" -> Result: " << result << endl;
             } else {
@@ -228,20 +203,6 @@ struct PDA {
             }
         }
 
-        // Обработка свёрток
-        // for (int reduce_state : reduce_states) {
-        //     dot_file << "    q" << reduce_state 
-        //             << " [label=\"" << states[reduce_state] << "\", shape=box, color=blue];" << endl;
-
-        //     if (reduce_states_with_rules.count(reduce_state)) {
-        //         for (const auto& [non_terminal, rule] : reduce_states_with_rules.at(reduce_state)) {
-        //             dot_file << "    q" << reduce_state << " -> q" << reduce_state
-        //                     << " [label=\"" << non_terminal << " -> " << rule << "\", style=dotted];" 
-        //                     << endl;
-        //         }
-        //     }
-        // }
-
         dot_file << "}" << endl;
         dot_file.close();
     }
@@ -295,7 +256,7 @@ class PosAutomat {
 
             // генерируем все состояния с учетом введенной грамматики;
             GenerateStates();
-            debug();
+            //debug();
         }
         
         vector< map<char, vector<innerState>> > getStates(){
@@ -612,7 +573,7 @@ class PosAutomat {
                 map<char, vector<innerState>> state_with_reduce = pos_states[i];
                 for (auto& [nonterm, rules] : state_with_reduce) {
                     for (innerState line_of_rules : rules) {
-                        cout << line_of_rules.rule << "  " << line_of_rules.point_index << endl;
+                        // cout << line_of_rules.rule << "  " << line_of_rules.point_index << endl;
                         if (line_of_rules.rule.size() == line_of_rules.point_index) {
                             string rule_for_eps = line_of_rules.rule;
                             int length_rule = line_of_rules.point_index;
@@ -627,7 +588,7 @@ class PosAutomat {
                             //1) по-очередно откатываеся назад
                             // итерация 1: ищем все состояния, которые имеют переход в состояние свертки
                             // итарция 2: ищем все состояния, которые имют переход в состояния, полученные в свертке 1
-                            cout << "StateToAnalyse:" << i << " LineOfRules: " << line_of_rules.rule << endl;
+                            // cout << "StateToAnalyse:" << i << " LineOfRules: " << line_of_rules.rule << endl;
                             vector<int> indexes_to_global;
                             indexes_to_global.push_back(i);
                             for (int step_to_back = length_rule - 1; step_to_back >= 0; step_to_back--) {
@@ -643,10 +604,10 @@ class PosAutomat {
                                 }
                                 indexes_to_global = indexes_from_local;
                             }
-                            cout << "index_to_global: ";
-                            for (auto& x : indexes_to_global) {
-                                cout << x << " ";
-                            } cout << endl;
+                            // cout << "index_to_global: ";
+                            // for (auto& x : indexes_to_global) {
+                            //     cout << x << " ";
+                            // } cout << endl;
 
                             // Получается так, что мы на каждой итерации обновляли потолок из состояний, в которые
                             // нам надо было найти, а значит indexes_to_global - список состояний, в которые мы можем попасть после свертки
@@ -761,12 +722,12 @@ int main(){
     */
 
     PosAutomat automat(grammar);  
-
+    //automat.debug();
     automat.renderGraph();
 
     // Конвертация в PDA
     PDA pda = automat.convertToPDA();
-    pda.debug();
+    //pda.debug();
     pda.renderGraph();
 
     std::vector<StringBoolPair> data = readFileToVector("tests/strinsTocheck.txt");
