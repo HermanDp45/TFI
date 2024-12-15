@@ -25,7 +25,7 @@ struct PDA {
     vector<int> accept_states; // вектор номеров принимающих состояний
     map<int, vector<pair<char, string>>> reduce_states_with_rules; // номер состояния : вектор из пар {нетерминал, правило свертки}
     vector<int> reduce_states; // номера сострояния свертки
-    
+    bool nondeterminism = false;
 
     bool checkString(const string& input_string) {
         // Очередь для отслеживания состояния (state, remaining_input, stack)
@@ -234,6 +234,7 @@ class PosAutomat {
         vector<char> non_terminals;
         map< int, map<string, string> > actions; // номер состояния : нетерминал : состояние
         char start_symbol = 'Q';
+        bool nondeterminism = false;
 
     public:
         PosAutomat(Grammar grammar) {
@@ -386,6 +387,7 @@ class PosAutomat {
                     }
 
                     // Обрабатываем свертки (reduce)
+                    bool flag_of_reduce_processing = false;
                     for (const auto &[non_terminal, inner_states] : current_state) {
                         // проходимся по каждому правилу состояния
                         for (const auto &state : inner_states) {
@@ -394,10 +396,17 @@ class PosAutomat {
                                     actions[state_index][std::string(1, non_terminal) + "→" + state.rule] = "finish";
                                 } else {
                                     // Точка в конце строки правила — добавляем свертку
+                                    flag_of_reduce_processing = true;
                                     actions[state_index][std::string(1, non_terminal) + "→" + state.rule] = "reduce";
                                 };
                             }
                         }
+                        if (flag_of_reduce_processing && inner_states.size() > 1) {
+                            nondeterminism = true;
+                        }
+                    }
+                    if (flag_of_reduce_processing && current_state.size() > 1) {
+                        nondeterminism = true;
                     }
                 }
 
@@ -534,6 +543,7 @@ class PosAutomat {
             auto non_terminals = getNonTerminals(); // нетерминалы (для стека)
             auto all_symbols = getAllSymbols(); // алфавит (все символы)
             map< int, map<string, string> > posActions = actions;
+            pda.nondeterminism = nondeterminism;
             
             // Поиск начального состояния
             // Поскольку меня состояния в позиционном автомате - вектор, то начальное - это то
