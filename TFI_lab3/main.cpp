@@ -16,6 +16,8 @@ struct innerState {
     }
 };
 
+using StringBoolPair = std::pair<std::string, bool>;
+
 struct PDA {
     vector<string> states; // вектор из названий состояний (индекс в векторе - номер состояни)
     map<int, vector<pair<int, string>>> transitions; // Номер состояния : вектор из пар {номер состояние, строка перехода}
@@ -23,7 +25,117 @@ struct PDA {
     vector<int> accept_states; // вектор номеров принимающих состояний
     map<int, vector<pair<char, string>>> reduce_states_with_rules; // номер состояния : вектор из пар {нетерминал, правило свертки}
     vector<int> reduce_states; // номера сострояния свертки
+    
 
+    bool run(const string& input_string) {
+        // Очередь для отслеживания состояния (state, remaining_input, stack)
+        deque<tuple<int, string, vector<string>>> queue;
+        queue.push_back({start_state, input_string, {"A0"}}); // Начальное состояние
+
+        while (!queue.empty()) {
+            auto [current_state, remaining_input, stack] = queue.front();
+            queue.pop_front();
+
+            // cout << "current_state: " << states[current_state] << " | remaining_input: " << remaining_input << " | stack: " << endl;
+            // for (auto x : stack) {
+            //     cout << x << " |  ";
+            // } cout << endl;
+
+            // Условие успешного завершения
+            if (remaining_input.empty() && stack.size() == 2 && stack[0] == "A0" && stack[1] == "A1" &&
+                find(accept_states.begin(), accept_states.end(), current_state) != accept_states.end()) {
+                return true;
+            }
+
+            // Текущий входной символ
+            string input_symbol = remaining_input.empty() ? "ε" : string(1, remaining_input[0]);
+
+            // Возможные переходы
+            if (transitions.count(current_state)) {
+                for (const auto& [next_state, transition_string] : transitions[current_state]) {
+                    string symbol, stack_top, stack_action;
+                    size_t comma_pos = transition_string.find(", ");
+                    size_t slash_pos = transition_string.find("/");
+
+                    // Разбираем строку перехода: "a, x/A3x"
+                    if (comma_pos != string::npos && slash_pos != string::npos) {
+                        symbol = transition_string.substr(0, comma_pos);
+                        stack_top = transition_string.substr(comma_pos + 2, slash_pos - comma_pos - 2);
+                        stack_action = transition_string.substr(slash_pos + 1);
+                    }
+
+
+                    // Проверяем входной символ и вершину стека
+                    if ((symbol == input_symbol || symbol == "ε") &&
+                        (stack.empty() || stack.back() == stack_top || stack_top == "x")) {
+
+                        // Создаём новую копию входных данных и стека
+                        string new_remaining_input = (symbol == input_symbol && !remaining_input.empty())
+                                                         ? remaining_input.substr(1)
+                                                         : remaining_input;
+                        
+                        // cout << "symbol: " << symbol << "  | remaining_input: " << remaining_input << " | stack_top: " << stack_top;
+                        // cout << " | stack action: " << stack_action << " next_state: " << states[next_state] << endl;
+                        
+                        // надо проанализировать снимаемый символ со стека:
+                        // если x, то мы либо запишем (если ε != action_stack) что-то в стек
+                        // если не x, то мы только запишем в стек
+
+                        vector<string> new_stack = stack;
+                        if (stack_top == "x") {
+                            if (stack_action != "ε") {
+                                new_stack.push_back(stack_action.substr(0, 2));
+                            } else if (!new_stack.empty()){
+                                new_stack.pop_back();
+                            }
+                        } else {
+                            new_stack.push_back(stack_action.substr(0, 2));
+                        }
+
+                        // cout << " | new_stack: " << endl;
+                        // for (auto x : new_stack) {
+                        //     cout << x << " |  ";
+                        // } cout << endl;
+
+                        // если у нас снимаемое значение со стека != x и при этом стек не пустой,
+                        // мы снимаем
+                        // if (!new_stack.empty() && stack_top != "x") {
+                        //     new_stack.pop_back();
+                        // }
+
+                        // // Добавляем новые символы в стек
+                        // if (stack_action != "ε") {
+                        //     string str_to_add = "";
+                        //     for (auto it = stack_action.rbegin(); it != stack_action.rend(); ++it) {
+                        //         if (*it != 'x') {
+                        //             new_stack.push_back(string(1, *it));
+                        //         }
+                        //     }
+                        // } else {
+                        //     new_stack.pop_back();
+                        // }
+
+                        // // Добавляем новое состояние в очередь
+                        queue.push_back({next_state, new_remaining_input, new_stack});
+                    }
+                }
+            }
+        }
+
+        // Если очередь пуста, а строка не принята
+        return false;
+    }
+
+    void validateStrings(const vector<pair<string, bool>>& inputs) {
+        for (const auto& [str, expected_result] : inputs) {
+            bool result = run(str);
+            if (result == expected_result) {
+                cout << "[OK] String: \"" << str << "\" -> Result: " << result << endl;
+            } else {
+                cout << "[ERROR] String: \"" << str << "\" -> Expected: " << expected_result << ", Got: " << result << endl;
+            }
+        }
+    }
 
     void debug() {
         cout << "=== PDA Debug Information ===" << endl;
@@ -489,7 +601,7 @@ class PosAutomat {
             for (auto& [indexFrom, toTransitions] : pos_transitions) {
                 for (auto& [nonterm, indexTo] : toTransitions) {
                     if (find(non_terminals.begin(), non_terminals.end(), nonterm) == non_terminals.end()) {
-                        string temp = nonterm + string(", x/A") + to_string(indexTo);
+                        string temp = nonterm + string(", x/A") + to_string(indexTo) + "x";
                         pda.transitions[indexFrom].push_back(make_pair(indexTo, temp));
                     }
                 }
@@ -583,6 +695,37 @@ class PosAutomat {
 
 };
 
+std::vector<StringBoolPair> readFileToVector(const std::string& filename) {
+    std::vector<StringBoolPair> result;
+    std::ifstream file(filename);
+
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open file " << filename << std::endl;
+        return result;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        std::string str;
+        int boolValue;
+
+        if (iss >> str >> boolValue) {
+            // Проверяем, что boolValue имеет корректное значение (0 или 1)
+            if (boolValue == 0 || boolValue == 1) {
+                result.emplace_back(str, static_cast<bool>(boolValue));
+            } else {
+                std::cerr << "Warning: Invalid boolean value in line: " << line << std::endl;
+            }
+        } else {
+            std::cerr << "Warning: Could not parse line: " << line << std::endl;
+        }
+    }
+
+    file.close();
+    return result;
+}
+
 int main(){
     
     // -------- SECTION 1 ---------
@@ -625,5 +768,15 @@ int main(){
     PDA pda = automat.convertToPDA();
     pda.debug();
     pda.renderGraph();
+
+    std::vector<StringBoolPair> data = readFileToVector("tests/strinsTocheck.txt");
+
+    // Выводим результат для проверки
+    for (const auto& [str, boolean] : data) {
+        std::cout << "[" << str << ", " << boolean << "]\n";
+    }
+
+    pda.validateStrings(data);
+
     return 0;
 }

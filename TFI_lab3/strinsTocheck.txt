@@ -1,0 +1,5 @@
+aacbb 1
+aaaaaaaacbc 0
+acbb 1
+cb 1
+aaacbbba 0
