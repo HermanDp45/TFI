@@ -28,27 +28,27 @@ struct PDA {
     bool nondeterminism = false;
 
     bool checkString(const string& input_string) {
-        // Очередь для отслеживания состояния (state, remaining_input, stack)
+        // Очередь для отслеживания состояния (state, remains, stack)
         deque<tuple<int, string, vector<string>>> queue;
         queue.push_back({start_state, input_string, {"A0"}}); // Начальное состояние
-
+        //cout << "PSFOSDPFOS% " << accept_states[0] << endl; 
         while (!queue.empty()) {
-            auto [current_state, remaining_input, stack] = queue.front();
+            auto [current_state, remains, stack] = queue.front();
             queue.pop_front();
 
-            // cout << "current_state: " << states[current_state] << " | remaining_input: " << remaining_input << " | stack: " << endl;
+            // cout << "current_state: " << states[current_state] << " | remains: " << remains << " | stack: " << endl;
             // for (auto x : stack) {
             //     cout << x << " |  ";
             // } cout << endl;
 
             // Условие успешного завершения
-            if (remaining_input.empty() && stack.size() == 2 && stack[0] == "A0" && stack[1] == "A1" &&
+            if (remains.empty() && stack.size() == 2 && stack[0] == "A0" &&
                 find(accept_states.begin(), accept_states.end(), current_state) != accept_states.end()) {
                 return true;
             }
 
             // Текущий входной символ
-            string input_symbol = remaining_input.empty() ? "ε" : string(1, remaining_input[0]);
+            string input_symbol = remains.empty() ? "ε" : string(1, remains[0]);
 
             // Возможные переходы
             if (transitions.count(current_state)) {
@@ -69,11 +69,11 @@ struct PDA {
                         (stack.empty() || stack.back() == stack_top || stack_top == "x")) {
 
                         // Создаём новую копию входных данных и стека
-                        string new_remaining_input = (symbol == input_symbol && !remaining_input.empty())
-                                                         ? remaining_input.substr(1)
-                                                         : remaining_input;
+                        string new_remains = (symbol == input_symbol && !remains.empty())
+                                                         ? remains.substr(1)
+                                                         : remains;
                         
-                        // cout << "symbol: " << symbol << "  | remaining_input: " << remaining_input << " | stack_top: " << stack_top;
+                        // cout << "symbol: " << symbol << "  | remains: " << remains << " | stack_top: " << stack_top;
                         // cout << " | stack action: " << stack_action << " next_state: " << states[next_state] << endl;
                         
                         // надо проанализировать снимаемый символ со стека:
@@ -91,7 +91,7 @@ struct PDA {
                             new_stack.push_back(stack_action.substr(0, 2));
                         }
 
-                        queue.push_back({next_state, new_remaining_input, new_stack});
+                        queue.push_back({next_state, new_remains, new_stack});
                     }
                 }
             }
