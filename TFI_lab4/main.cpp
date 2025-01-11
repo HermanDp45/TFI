@@ -13,25 +13,6 @@
 
 using namespace std;
 
-//сgr (~capturing group)
-//lookahead (~ (?=…) )
-//link (~(?num))
-//ngr (~non-capturing group  (?:…))
-
-/*
-Структура для токена
-варианты типов токена:
-    (
-    )
-    s (~symbol [a-Z])
-    n (~ [1-9])
-    ?
-    :
-    *
-    |
-    $
-*/
-
 class ParseException : public runtime_error {
 public:
     explicit ParseException(const string& message) 
