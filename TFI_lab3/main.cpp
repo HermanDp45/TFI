@@ -353,7 +353,7 @@ class PosAutomat {
                 // инициализируем количество состояний
                 int initial_states_count = states.size();
                 // проходим по каждому состоянию
-                // ПОПРАВЬ СТАРТОВЫЙ ИНДЕКС - он должен смещаться как минимум на 1 после каждой итерации while
+                // 
                 for (int state_index = 0; state_index < initial_states_count; ++state_index) {
                     // получаем текущее состояние
 
@@ -701,7 +701,7 @@ int main(){
     
     // -------- SECTION 1 ---------
     // чтение файла с грамматикой
-    ifstream file("tests/grammar_2.txt");
+    ifstream file("tests/grammar_3.txt");
     if (!file.is_open()) {
         cerr << "Не удалось открыть файл!" << endl;
         return 1;
@@ -740,7 +740,7 @@ int main(){
     //pda.debug();
     pda.renderGraph();
 
-    std::vector<StringBoolPair> data = readFileToVector("tests/strinsTocheck.txt");
+    std::vector<StringBoolPair> data = readFileToVector("tests/testStrings_2.txt");
 
     // Выводим результат для проверки
     for (const auto& [str, boolean] : data) {
