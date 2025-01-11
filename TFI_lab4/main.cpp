@@ -43,6 +43,7 @@ struct token {
     string val;
 };
 
+// функция для выполнения ввода данных
 string readInput() {
     int mode;
     cout << "Выберите режим работы (1 - ввод через консоль, 2 - считывание строки из файла (RegForTest.txt)): ";
@@ -73,12 +74,14 @@ string readInput() {
     return input;
 }
 
-
+// Токенайзер, который каждому символу присваивает значение токен
 bool Tokenizer(string reg, vector<token>& res) {
     for (int x = 0; x < reg.size(); x++) {
+        // проверка на то, является ли символом
         if (isalpha(reg[x])) {
             res.push_back(token {"Symbol", "" + string(1, reg[x])});
-        } else if (isdigit(reg[x]) && reg[x] != '0') { // ДОБАВЬ ПРОВЕРКУ НА НОЛЬ - если есть, то бан
+        } 
+        else if (isdigit(reg[x]) && reg[x] != '0') {  // Проверка на то, является ли цифрой (1-9 (учитывая грамматику))
             res.push_back(token{"Number", "" + string(1, reg[x])});
         } else if (reg[x] == '*') {
             // Проверка на двойные звездочки
@@ -113,42 +116,50 @@ struct SymbolNode {
     string val;
 };
 
+// Узел *
 struct IterationNode {
     shared_ptr<void> node;
 };
 
+// узел (...)
 struct CapturingGroupNode {
     shared_ptr<void> node;
     int index;
 };
 
+// узел (?:...)
 struct NonCapturingGroupNode {
     shared_ptr<void> node;
 };
 
+// узел leftright
 struct ConcatinationNode {
     shared_ptr<void> left;
     shared_ptr<void> right;
 };
 
+// узел left | right
 struct AlternativeNode {
     shared_ptr<void> left;
     shared_ptr<void> right;
 };
 
+// узел (?1)
 struct LinkToGroupNode {
     int group_index;
 };
 
+// узел (?= ...)
 struct LookaheadNode {
     shared_ptr<void> node;
 };
 
+// узел, для проверки, что была получена ошибка
 struct NullNode {
     bool null;
 };
 
-
+// Глобальный тип, который позволяет использовать структуру для возврата значения из функции (для разных)
 using Node = variant<SymbolNode, IterationNode,
                     CapturingGroupNode, NonCapturingGroupNode,
                     ConcatinationNode, AlternativeNode,
@@ -157,49 +168,54 @@ using Node = variant<SymbolNode, IterationNode,
 
 class Parser {
 private:
+    // индекс обрабатываемого токена
     int cind = 0;
+    // количество групп захвата
     int countGroup = 0;
     vector<token> tokens;
 
+    // функция для проверки построенного регулярного дерева (вложенность в Lookahead, ссылки на неициализированные группы)
     void validateNode(const Node& node, 
                   set<int>& initializedGroups,
                   bool insideLookahead) {
         // Проверяем тип узла и вызываем соответствующую обработку
         if (holds_alternative<CapturingGroupNode>(node)) {
+            // если такой тип содержится, то получаем его и берем указанный тип (чтобы потом обратиться к внутреннему значению)
             const auto& cgNode = get<CapturingGroupNode>(node);
+            // если мы сейчас находимся внутри (?=...), то выкидываем ошибку
             if (insideLookahead) {
                 throw ParseException("Группы захвата недопустимы внутри Lookahead.");
             }
-            //initializedGroups.insert(cgNode.index);
+            // запускаем проверку дочернего узла
             validateNode(*static_pointer_cast<Node>(cgNode.node), initializedGroups, insideLookahead);
-        } else if (holds_alternative<LookaheadNode>(node)) {
+        } else if (holds_alternative<LookaheadNode>(node)) { // аналогично вложенность для lookahead
             const auto& laNode = get<LookaheadNode>(node);
             if (insideLookahead) {
                 throw ParseException("Вложенные Lookahead не допускаются.");
             }
             validateNode(*static_pointer_cast<Node>(laNode.node), initializedGroups, true);
-        } else if (holds_alternative<LinkToGroupNode>(node)) {
+        } else if (holds_alternative<LinkToGroupNode>(node)) { // проверка на то, является ли указанный индекс группы инициализированным в регулярке
             const auto& linkNode = get<LinkToGroupNode>(node);
             if (initializedGroups.find(linkNode.group_index) == initializedGroups.end()) {
                 throw ParseException("Ссылка на неинициализированную группу: " + to_string(linkNode.group_index));
             }
-        } else if (holds_alternative<AlternativeNode>(node)) {
+        } else if (holds_alternative<AlternativeNode>(node)) { // запуск проверки для дочерних узлов
             const auto& altNode = get<AlternativeNode>(node);
             validateNode(*static_pointer_cast<Node>(altNode.left), initializedGroups, insideLookahead);
             validateNode(*static_pointer_cast<Node>(altNode.right), initializedGroups, insideLookahead);
-        } else if (holds_alternative<ConcatinationNode>(node)) {
+        } else if (holds_alternative<ConcatinationNode>(node)) { // запуск проверки для дочерних узлов
             const auto& concatNode = get<ConcatinationNode>(node);
             validateNode(*static_pointer_cast<Node>(concatNode.left), initializedGroups, insideLookahead);
             validateNode(*static_pointer_cast<Node>(concatNode.right), initializedGroups, insideLookahead);
-        } else if (holds_alternative<IterationNode>(node)) {
+        } else if (holds_alternative<IterationNode>(node)) { // заспуск проверки для дочерних узлов
             const auto& iterNode = get<IterationNode>(node);
             validateNode(*static_pointer_cast<Node>(iterNode.node), initializedGroups, insideLookahead);
-        } else if (holds_alternative<NonCapturingGroupNode>(node)) {
+        } else if (holds_alternative<NonCapturingGroupNode>(node)) { // запуск проверки для (?:...)
             const auto& ncgNode = get<NonCapturingGroupNode>(node);
             validateNode(*static_pointer_cast<Node>(ncgNode.node), initializedGroups, insideLookahead);
         } else if (holds_alternative<SymbolNode>(node)) {
             // Ничего не делаем для символов
-        } else if (holds_alternative<NullNode>(node)) {
+        } else if (holds_alternative<NullNode>(node)) { // вообще дл пустой ноды тут не дойдет, но навсякий случай
             const auto& nullNode = get<NullNode>(node);
             if (nullNode.null) {
                 throw ParseException("Обнаружен NullNode в AST.");
@@ -210,15 +226,18 @@ private:
     }
 
 public:
+    // конструктор
     Parser(const vector<token>& inputTokens)
         : tokens(inputTokens), cind(0), countGroup(0) {}
 
     // Проверка дополнительных ограничений
     void validateAST(const Node& ast) {
         set<int> initializedGroups; // Для проверки инициализации групп
+        // добавляем только те, которые были инициализированы
         for (int i = 1; i <= countGroup; i++){
             initializedGroups.insert(i);
         }
+        // запуск рекурсии
         validateNode(ast, initializedGroups, /*insideLookahead=*/false);
     }
     
@@ -227,24 +246,26 @@ public:
         if (index < tokens.size()){
             return tokens[index];
         };
-        //cout << "getCToken" << endl;
+        // Если дойти до конца строки, то будет возвращен символ конца
         return token{"$","$"}; 
     }
 
     // Запускаем построение AST tree
     Node parse(){
         try {
-            //cout << "parse" << endl;
+            // Запускаем операцию с самы высоким приоритетом от которой будем спускаться ниже
             Node node = parseAlternative();
-            //cout << "parse resnode" << endl;
+
+            // Проверяем результат обработки - если дошли до конца, то все окей - дерево было построено
             if (getCToken(cind).type != "$") {
                 throw ParseException("Ожидался конец выражения.");
             }
+            // проверяем количество групп
             if (countGroup > 9) {
                 throw ParseException("Количество групп захвата превышает 9.");
             }
             return node;
-        } catch (const ParseException& e) {
+        } catch (const ParseException& e) { // обрабатываем ошбки
             cerr << "Ошибка парсинга: " << e.what() << " на позиции " << cind << endl;
             return NullNode{true}; // Возвращаем NullNode для обозначения ошибки
         }
@@ -252,16 +273,16 @@ public:
 
     // Обертка в alternative (|)
     Node parseAlternative(){
-        //cout << "parseAlternative" << endl;
         Node nodeL = parseConcatination();
-        //cout << "parseAlternative NodeL f" << endl;
+
+        // если встречается | ниже, то мы возвращаемся сюда же и проверяем на символ |
         while (cind < tokens.size() && getCToken(cind).type == "Alternative") {
             if (cind == 0) {
                 throw ParseException("Первый символ '|' недопустим.");
             }
             cind++;
+            // обрабатываем обе части вырадения (делим на правую и левую)
             Node nodeR = parseConcatination();
-            //cout << "parseAlternative NodeR" << endl;
             nodeL = AlternativeNode{
                 make_shared<Node>(nodeL), 
                 make_shared<Node>(nodeR)
@@ -272,29 +293,24 @@ public:
 
     // обертка в Concatination
     Node parseConcatination(){
-        //cout << "parseConcatination" << endl;
         Node nodeL = parseIterarion();
         
         while (cind < tokens.size() 
         && getCToken(cind).type != "Alternative"
         && getCToken(cind).type != "RightBracket"
         && getCToken(cind).type != "$") {
-            //cout << "ParseConcat NodeR s" << endl;
             Node nodeR = parseIterarion();
-            //cout << "ParseConcat NodeR f" << endl;
+            
             nodeL = ConcatinationNode{
                 make_shared<Node>(nodeL),
                 make_shared<Node>(nodeR)
             };
-            //cout << "PASDASDASd" << endl;
         }
-        //cout << "ParseConcat return" << endl;
         return nodeL;
     };
 
     // обертка в Iteration (*)
     Node parseIterarion(){
-        //cout << "parseIterarion" << endl;
         Node nodeL = parseLow();
 
         while (cind < tokens.size() && getCToken(cind).type == "Iteration") {
@@ -307,20 +323,21 @@ public:
     }
 
     Node parseLow(){
-        //cout << "parseLow" << endl;
         // обрабатываем левую скобку
         if (getCToken(cind).type == "LeftBracket") {
             // сдвигаемся дальше вправо
             cind++;
 
-            // Если встречаем ?
+            // Если встречается ?
             if (getCToken(cind).type == "?") {
                 cind++;
                 
                 if (getCToken(cind).type == ":") {
+                    // после (?:...) вместо ... идет другое регулярное выражение, поэтому проверяем их все
                     cind++;
                     Node node = parseAlternative();
 
+                    // по итогу должны дойти до ), иначе выбрасываем ошибку
                     if (getCToken(cind).type == "RightBracket") {
                         cind++;
                         return NonCapturingGroupNode{
@@ -330,6 +347,7 @@ public:
                         throw ParseException("Ожидалась закрывающая скобка для некопирующей группы.");
                     }
                 } else if (getCToken(cind).type == "=") {
+                    // аналогичная локига, что и выше
                     cind++;
                     Node node = parseAlternative();
 
@@ -342,6 +360,7 @@ public:
                         throw ParseException("Ожидалась закрывающая скобка для некопирующей группы.");
                     }
                 } else if (getCToken(cind).type == "Number") {
+                    // после цифры сразу должна стоять скобка (посколько максимум 9 только может групп)
                     int number = stoi(getCToken(cind).val);
                     cind++;
 
@@ -355,6 +374,8 @@ public:
                     }
                 };
             } else {
+                // внутри группы захвата должно быть какое-то выражение, поэтому его также разбираем пока не дойдем до )
+                // которая его открыло
                 int futureIndex = ++countGroup;
                 Node node = parseAlternative();
                 
@@ -368,6 +389,7 @@ public:
                     throw ParseException("Ожидалась закрывающая скобка для некопирующей группы.");
                 }
             }
+        // если же встрчаем символ, то просто оборачиваем в символ и смещаем вправо
         } else if (getCToken(cind).type == "Symbol" || getCToken(cind).type == "Number"){
             //cout << "CHAR" << endl;
             string value = getCToken(cind).val;
@@ -376,8 +398,7 @@ public:
                 value
             };
         };
-
-    //cout << "HELLO" << endl;
+    // Если же ничего из того, что ожидается не встречаеся, то выбрасываем ошибку
     throw ParseException("Не удалось разобрать низкоуровневый узел.");
     return NullNode{
         true
@@ -484,7 +505,7 @@ private:
 
     // Генерация нового имени нетерминала
     string newNonTerminal() {
-        return "X" + to_string(nextNonTerminal++);
+        return "A" + to_string(nextNonTerminal++);
     }
 
     // Функция для проверки, является ли узел Lookahead
@@ -492,13 +513,21 @@ private:
         return holds_alternative<LookaheadNode>(node);
     }
 
+    // функция для генерации правило (используется для генерации правил каркасной кс-грамматики)
     void generateRule(const Node& node, const string& currentNonTerminal) {
+        // если рассматриваемый узел - символ, то добавляем текущему рассматриваемому правилу правило вида 
+        // NonTerm ::= symb
         if (auto symbolNode = get_if<SymbolNode>(&node)) {
             grammarRules[currentNonTerminal].push_back(symbolNode->val);
+        // Если рассматривается узел итерации, то запускаем генерацию последующих узлов
         } else if (auto iterNode = get_if<IterationNode>(&node)) {
+
+            // если не является lookahead, то добавляем узел в правило (по аналогии в остальных частях)
             if (!isLookaheadNode(*static_pointer_cast<Node>(iterNode->node))) {
                 string subNonTerminal = newNonTerminal();
+                // запускаем по рекурсии разбор внутреннего выражения
                 generateRule(*static_pointer_cast<Node>(iterNode->node), subNonTerminal);
+                // добавляем правило
                 grammarRules[currentNonTerminal].push_back(subNonTerminal + "" + currentNonTerminal + " | ε");
             }
 
