@@ -659,7 +659,7 @@ int main(){
         //printNode(ast);
         try {
             parser.validateAST(ast);
-            cout << "AST прошел все проверки!" << endl;
+            cout << "Регулярное выражение прошло все проверки!" << endl;
             printNode(ast);
 
             // Генерация и вывод КС-грамматики
@@ -669,7 +669,7 @@ int main(){
             generator.printGrammar();
 
         } catch (const ParseException& e) {
-            cerr << "Ошибка проверки AST: " << e.what() << endl;
+            cerr << "Неверное регулярное выражение: " << e.what() << endl;
             return 1;
         }
     }

@@ -34,7 +34,7 @@ g++ -std=c++17 main.cpp grammar_reader.cpp -o program
 Введите строку: (a|b)*
 (a|b)*
 [LeftBracket, (] [Symbol, a] [Alternative, |] [Symbol, b] [RightBracket, )] [Iteration, *] 
-AST прошел все проверки!
+Регулярное выражение прошло все проверки!
 IterationNode:
   CapturingGroupNode (index 1):
     AlternativeNode:
